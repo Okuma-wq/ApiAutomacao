@@ -1,0 +1,49 @@
+# Build results
+bin/
+obj/
+out/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code workspace settings
+.vscode/
+
+# NuGet packages
+*.nupkg
+# NuGet restore
+packages/
+# Dotnet restore
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Configuration files
+appsettings.Development.json
+appsettings.Local.json
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Rider
+.idea/
+
+# Test results
+TestResults/
+*.coverage
+*.coveragexml
+
+# Others
+*.vspscc
+*.vssscc
+.vs/
