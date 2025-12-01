@@ -1,4 +1,5 @@
-﻿using MongoDB.Bson;
+﻿using Automacao.Models;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using MQTTnet;
@@ -12,7 +13,7 @@ namespace Automacao.Services
     public class MqttService : IHostedService
     {
         private readonly ILogger<MqttService> _logger;
-        private readonly IMongoCollection<DadosMaquina> _collection;
+        private readonly IMongoCollection<SensorData> _collection;
         private readonly PowerBiService _powerBiService;
         private readonly IConfiguration _config;
         private IMqttClient? _client;
@@ -34,7 +35,7 @@ namespace Automacao.Services
             var useTls = mqttSection.GetValue<bool>("UseTls");
 
             _collection = database
-                .GetCollection<DadosMaquina>(_config["MongoDb:CollectionName"]);
+                .GetCollection<SensorData>(_config["MongoDb:CollectionName"]);
 
             var factory = new MqttFactory();
             _client = factory.CreateMqttClient();
@@ -79,9 +80,9 @@ namespace Automacao.Services
                 var payload = Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment);
                 _logger.LogInformation($"📥 Mensagem recebida: {payload}");
 
-                var message = JsonSerializer.Deserialize<DadosMaquina>(payload);
+                var message = JsonSerializer.Deserialize<SensorData>(payload);
 
-                var lista = new List<DadosMaquina>();
+                var lista = new List<SensorData>();
                 lista.Add(message!);
 
                 await _powerBiService.SendAsync(message!);
@@ -106,16 +107,5 @@ namespace Automacao.Services
             await _client!.PublishAsync(message);
             _logger.LogInformation($"📤 Comando publicado: {comando}");
         }
-    }
-
-    public class DadosMaquina
-    {
-        [BsonId]
-        [BsonRepresentation(BsonType.String)]
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-        public int Volume { get; set; }
-        public int Temp { get; set; }
-        public string Maquina { get; set; } = string.Empty;
-        public DateTime Data { get; set; } = DateTime.UtcNow;
     }
 }
