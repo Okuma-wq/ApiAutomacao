@@ -1,24 +1,28 @@
-﻿using System.Text;
-using System.Text.Json;
+﻿using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver;
 using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Formatter;
-using MongoDB.Driver;
+using System.Text;
+using System.Text.Json;
 
 namespace Automacao.Services
 {
     public class MqttService : IHostedService
     {
         private readonly ILogger<MqttService> _logger;
-        private readonly IMongoCollection<MqttMessage> _collection;
+        private readonly IMongoCollection<DadosMaquina> _collection;
+        private readonly PowerBiService _powerBiService;
         private readonly IConfiguration _config;
         private IMqttClient? _client;
         private MqttClientOptions _options = null!;
 
-        public MqttService(ILogger<MqttService> logger, IConfiguration config, IMongoDatabase database)
+        public MqttService(ILogger<MqttService> logger, IConfiguration config, IMongoDatabase database, PowerBiService powerBi)
         {
             _logger = logger;
             _config = config;
+            _powerBiService = powerBi;
 
             var mqttSection = _config.GetSection("Mqtt");
             var broker = mqttSection.GetValue<string>("Broker");
@@ -30,7 +34,7 @@ namespace Automacao.Services
             var useTls = mqttSection.GetValue<bool>("UseTls");
 
             _collection = database
-                .GetCollection<MqttMessage>(_config["MongoDb:CollectionName"]);
+                .GetCollection<DadosMaquina>(_config["MongoDb:CollectionName"]);
 
             var factory = new MqttFactory();
             _client = factory.CreateMqttClient();
@@ -75,12 +79,12 @@ namespace Automacao.Services
                 var payload = Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment);
                 _logger.LogInformation($"📥 Mensagem recebida: {payload}");
 
-                var message = new MqttMessage
-                {
-                    Topic = e.ApplicationMessage.Topic,
-                    Payload = payload,
-                    Timestamp = DateTime.UtcNow
-                };
+                var message = JsonSerializer.Deserialize<DadosMaquina>(payload);
+
+                var lista = new List<DadosMaquina>();
+                lista.Add(message!);
+
+                await _powerBiService.SendAsync(message!);
 
                 await _collection.InsertOneAsync(message);
                 _logger.LogInformation("💾 Mensagem salva no MongoDB.");
@@ -104,11 +108,14 @@ namespace Automacao.Services
         }
     }
 
-    public class MqttMessage
+    public class DadosMaquina
     {
+        [BsonId]
+        [BsonRepresentation(BsonType.String)]
         public string Id { get; set; } = Guid.NewGuid().ToString();
-        public string Topic { get; set; } = string.Empty;
-        public string Payload { get; set; } = string.Empty;
-        public DateTime Timestamp { get; set; }
+        public int Volume { get; set; }
+        public int Temp { get; set; }
+        public string Maquina { get; set; } = string.Empty;
+        public DateTime Data { get; set; } = DateTime.UtcNow;
     }
 }

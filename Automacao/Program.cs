@@ -20,6 +20,7 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 // Registra os serviços personalizados
 builder.Services.AddSingleton<MongoService>();
 builder.Services.AddSingleton<MqttService>();
+builder.Services.AddSingleton<PowerBiService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MqttService>());
 
 // MVC e Swagger
