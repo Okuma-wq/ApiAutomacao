@@ -82,8 +82,12 @@ namespace Automacao.Services
 
                 var message = JsonSerializer.Deserialize<SensorData>(payload);
 
-                var lista = new List<SensorData>();
-                lista.Add(message!);
+                // Validação dos sensores e geração de alertas
+                var alerta = ValidarSensores(message!);
+
+                // Envio de alertas via MQTT
+                await PublishAlertaAsync(alerta);
+                _logger.LogWarning($"⚠️ Alertas detectados: Lubrificação={alerta.LubrificaMaquina}, Descarte={alerta.ExcessoDescarte}, Temperatura={alerta.AltaTemperatura}");
 
                 await _powerBiService.SendAsync(message!);
 
@@ -96,6 +100,46 @@ namespace Automacao.Services
             }
         }
 
+        private AlertaCommand ValidarSensores(SensorData data)
+        {
+            var alerta = new AlertaCommand();
+
+            // Valida temperatura alta (> 80°C)
+            if (data.Temperatura > 80)
+            {
+                alerta.AltaTemperatura = true;
+                _logger.LogWarning($"🌡️ Alta temperatura detectada: {data.Temperatura}°C");
+            }
+            else
+            {
+                alerta.AltaTemperatura = false;
+            }
+
+            // Valida volume baixo - necessita lubrificação (< 20)
+            if (data.Volume < 20)
+            {
+                alerta.LubrificaMaquina = true;
+                _logger.LogWarning($"🔧 Volume baixo detectado: {data.Volume} - Lubrificação necessária");
+            }
+            else
+            {
+                alerta.LubrificaMaquina = false;
+            }
+
+            // Valida volume alto - excesso de descarte (> 90)
+            if (data.Volume > 90)
+            {
+                alerta.ExcessoDescarte = true;
+                _logger.LogWarning($"🗑️ Volume alto detectado: {data.Volume} - Excesso de descarte");
+            }
+            else
+            {
+                alerta.ExcessoDescarte = false;
+            }
+
+            return alerta;
+        }
+
         public async Task PublishAsync(string comando)
         {
             var topic = _config["Mqtt:TopicPublish"];
@@ -106,6 +150,20 @@ namespace Automacao.Services
 
             await _client!.PublishAsync(message);
             _logger.LogInformation($"📤 Comando publicado: {comando}");
+        }
+
+        public async Task PublishAlertaAsync(AlertaCommand alerta)
+        {
+            var topic = _config["Mqtt:TopicPublish"];
+            var json = JsonSerializer.Serialize(alerta);
+
+            var message = new MqttApplicationMessageBuilder()
+                .WithTopic(topic)
+                .WithPayload(json)
+                .Build();
+
+            await _client!.PublishAsync(message);
+            _logger.LogInformation($"📤 Alerta publicado: {json}");
         }
     }
 }

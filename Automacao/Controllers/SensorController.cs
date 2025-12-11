@@ -23,10 +23,10 @@ public class SensorController : ControllerBase
         return Ok(dados);
     }
 
-    [HttpPost("comando/{comando}")]
-    public async Task<IActionResult> EnviarComando([FromRoute] string comando)
-    {
-        await _mqtt.PublishAsync(comando);
-        return Ok("Comando enviado via MQTT");
-    }
+    //[HttpPost("comando/{comando}")]
+    //public async Task<IActionResult> EnviarComando([FromRoute] string comando)
+    //{
+    //    await _mqtt.PublishAsync(comando);
+    //    return Ok("Comando enviado via MQTT");
+    //}
 }
